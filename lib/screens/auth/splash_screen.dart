@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'login_screen.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:android_intent_plus/android_intent.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -26,12 +28,94 @@ class _SplashScreenState extends State<SplashScreen> {
     }
 
     // espera mínimo para que el usuario vea la imagen (ajusta duración si quieres)
-    await Future.delayed(const Duration(milliseconds: 3500));
+    await Future.delayed(const Duration(milliseconds: 1800));
 
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
+
+    // check permissions and show dialog once if needed, then navigate
+    await _checkPermissionsAndNavigate();
+  }
+
+  Future<void> _checkPermissionsAndNavigate() async {
+    SharedPreferences? prefs;
+    var asked = false;
+
+    try {
+      prefs = await SharedPreferences.getInstance();
+      asked = prefs.getBool('asked_exact_alarm') ?? false;
+    } catch (e) {
+      // Could not access SharedPreferences; log but continue — we will still prompt
+      debugPrint('SharedPreferences.getInstance() failed: $e');
+      prefs = null;
+      asked = false; // treat as not asked so we prompt
+    }
+
+    // Check notification and exact alarm permissions. If status check fails,
+    // assume permissions are not granted so we can prompt the user.
+    var needsNotif = true;
+    var needsExact = true;
+    try {
+      final notifStatus = await Permission.notification.status;
+      final exactStatus = await Permission.scheduleExactAlarm.status;
+      needsNotif = !notifStatus.isGranted;
+      needsExact = !exactStatus.isGranted;
+    } catch (e) {
+      debugPrint('Permission.status failed: $e');
+      // keep defaults (true) so dialog will be shown
+    }
+
+    // If we already asked before, just continue without prompting
+    if (!asked && (needsNotif || needsExact)) {
+      final allow = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (c) => AlertDialog(
+          title: const Text('Permisos de notificaciones'),
+          content: const Text(
+              'Para que los recordatorios funcionen correctamente, la aplicación necesita permiso para mostrar notificaciones y, opcionalmente, programar alarmas exactas.\n\nPuedes permitirlos en la siguiente pantalla o continuar sin ellos.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(c).pop(false),
+              child: const Text('Continuar sin permisos'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(c).pop(true),
+              child: const Text('Permitir'),
+            ),
+          ],
+        ),
+      );
+
+      if (prefs != null) {
+        try {
+          await prefs.setBool('asked_exact_alarm', true);
+        } catch (e) {
+          debugPrint('Failed to write asked_exact_alarm: $e');
+        }
+      }
+
+      if (allow == true) {
+        // Request notification permission (will show prompt on Android 13+)
+        try {
+          await Permission.notification.request();
+        } catch (e) {
+          debugPrint('Permission.request() failed: $e');
+        }
+
+        // For exact alarms there is no standard runtime prompt; open system screen
+        // only if the user explicitly accepted. This avoids opening settings automatically.
+        try {
+          final intent = AndroidIntent(action: 'android.settings.REQUEST_SCHEDULE_EXACT_ALARM');
+          await intent.launch();
+        } catch (_) {
+          // ignore if intent fails
+        }
+      }
+    }
+
+    // proceed to AuthScreen to check if user is already logged in; maintains session
+    if (!mounted) return;
+    Navigator.of(context).pushReplacementNamed('/auth');
   }
 
   @override

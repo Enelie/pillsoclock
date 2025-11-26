@@ -1,5 +1,6 @@
 // lib/core/services/notification_service.dart
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/services.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tzdata;
 
@@ -27,7 +28,7 @@ class NotificationService {
       tz.setLocalLocation(tz.getLocation('UTC'));
     }
 
-    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const android = AndroidInitializationSettings('drawable/ic_notification');
     const settings = InitializationSettings(android: android);
 
     await _instance.initialize(
@@ -113,16 +114,41 @@ class NotificationService {
       actions: actions,
     );
 
-    await _instance.zonedSchedule(
-      id,
-      title,
-      body,
-      scheduledDate,
-      NotificationDetails(android: androidDetails),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      matchDateTimeComponents: DateTimeComponents.time, // 🔁 diario
-      payload: payload,
-    );
+    try {
+      await _instance.zonedSchedule(
+        id,
+        title,
+        body,
+        scheduledDate,
+        NotificationDetails(android: androidDetails),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        matchDateTimeComponents: DateTimeComponents.time, // 🔁 diario
+        payload: payload,
+      );
+    } on PlatformException catch (e) {
+      // Android 12+ may throw when exact alarms aren't permitted.
+      // Fallback to inexact scheduling to avoid opening settings or crashing the app.
+      if (e.code == 'exact_alarms_not_permitted') {
+        try {
+          await _instance.zonedSchedule(
+            id,
+            title,
+            body,
+            scheduledDate,
+            NotificationDetails(android: androidDetails),
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+            matchDateTimeComponents: DateTimeComponents.time,
+            payload: payload,
+          );
+          return;
+        } catch (_) {
+          // ignore fallback failures
+          return;
+        }
+      }
+      // if it's a different platform exception, rethrow so callers can handle it
+      rethrow;
+    }
   }
 
   /// 🔹 Programa una notificación exacta para una fecha específica
@@ -155,15 +181,35 @@ class NotificationService {
       actions: actions,
     );
 
-    await _instance.zonedSchedule(
-      id,
-      title,
-      body,
-      tzDateTime,
-      NotificationDetails(android: androidDetails),
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      payload: payload,
-    );
+    try {
+      await _instance.zonedSchedule(
+        id,
+        title,
+        body,
+        tzDateTime,
+        NotificationDetails(android: androidDetails),
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        payload: payload,
+      );
+    } on PlatformException catch (e) {
+      if (e.code == 'exact_alarms_not_permitted') {
+        try {
+          await _instance.zonedSchedule(
+            id,
+            title,
+            body,
+            tzDateTime,
+            NotificationDetails(android: androidDetails),
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+            payload: payload,
+          );
+          return;
+        } catch (_) {
+          return;
+        }
+      }
+      rethrow;
+    }
   }
 
   /// 🔹 Cancela una notificación por su ID

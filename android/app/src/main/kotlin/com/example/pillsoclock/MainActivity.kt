@@ -1,4 +1,4 @@
-package com.example.pillsoclock
+package pillsoclock.app
 
 import io.flutter.embedding.android.FlutterActivity
 

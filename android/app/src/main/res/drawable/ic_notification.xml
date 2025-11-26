@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+  <!-- Pills O'Clock: simple capsule icon -->
+  <path
+      android:fillColor="#FFFFFF"
+      android:pathData="M6,8C4.9,8 4,8.9 4,10L4,14C4,15.1 4.9,16 6,16L18,16C19.1,16 20,15.1 20,14L20,10C20,8.9 19.1,8 18,8L6,8ZM8,10C8.55,10 9,10.45 9,11C9,11.55 8.55,12 8,12C7.45,12 7,11.55 7,11C7,10.45 7.45,10 8,10ZM12,10C12.55,10 13,10.45 13,11C13,11.55 12.55,12 12,12C11.45,12 11,11.55 11,11C11,10.45 11.45,10 12,10ZM16,10C16.55,10 17,10.45 17,11C17,11.55 16.55,12 16,12C15.45,12 15,11.55 15,11C15,10.45 15.45,10 16,10Z"/>
+</vector>

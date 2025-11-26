@@ -64,9 +64,11 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    if (mounted) {
-      setState(() => _loading = false);
-    }
+    if (!mounted) return;
+
+    // login successful: stop loader and navigate to the auth resolver
+    setState(() => _loading = false);
+    Navigator.of(context).pushReplacementNamed('/auth');
   }
 
   @override

@@ -64,8 +64,26 @@ class AuthProviderLocal extends ChangeNotifier {
     try {
       await _service.login(email: email, password: password);
       return null;
+    } on FirebaseAuthException catch (e) {
+      // Map common Firebase auth error codes to friendly Spanish messages
+      if (e.code == 'user-not-found' || e.code == 'wrong-password') {
+        return 'Correo o contraseña incorrectos. Verifica tus credenciales e intenta de nuevo.';
+      }
+      if (e.code == 'invalid-email') {
+        return 'El correo proporcionado no es válido.';
+      }
+      if (e.code == 'user-disabled') {
+        return 'Esta cuenta ha sido deshabilitada. Contacta al soporte.';
+      }
+      if (e.code == 'too-many-requests') {
+        return 'Se han realizado demasiados intentos. Intenta nuevamente más tarde.';
+      }
+      if (e.code == 'invalid-credential') {
+      return 'Correo o contraseña incorrectos. Verifica tus credenciales.';
+    }
+      return e.message ?? 'Error de autenticación. Intenta nuevamente.';
     } catch (e) {
-      return e.toString();
+        return e.toString();
     }
   }
 
